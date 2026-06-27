@@ -58,17 +58,30 @@ Start-Sleep 5
 & sc.exe query Injektor | Out-Host
 Start-Sleep 20
 
-Log "TEST: run DentalCADApp.exe (native exe) to see if native init passes"
 $bin = "$root\DentalCADApp\bin\config\bin"
+
+Log "TEST A: harness in FULL exocad bin dir (native init may need full install files)"
+curl.exe -L -m 60 -o "$bin\decode_scene.cs" "https://ghfast.top/https://raw.githubusercontent.com/lhrst/exocad-decode/main/decode_scene.cs"
+curl.exe -L -m 60 -o "$bin\scene.dentalCAD" "https://ghfast.top/https://raw.githubusercontent.com/lhrst/exocad-decode/main/scene.dentalCAD"
+& C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /platform:x64 /out:"$bin\decode_scene.exe" "$bin\decode_scene.cs"
+New-Item -ItemType Directory -Force C:\out | Out-Null
+Set-Location $bin
+& ".\decode_scene.exe" scene.dentalCAD C:\out 2>&1 | Select-Object -First 25
+Log "harness output"
+Get-ChildItem C:\out -EA SilentlyContinue | Format-Table Name,Length
+
+Log "TEST B: run DentalCADApp.exe (native exe) to see if native init passes"
 Set-Location $bin
 $proc = Start-Process ".\DentalCADApp.exe" -PassThru
-Start-Sleep 30
-if ($proc.HasExited) {
-  Write-Host ("DentalCADApp EXITED, code: " + $proc.ExitCode)
-} else {
-  Write-Host "DentalCADApp STILL RUNNING after 30s (native init likely OK, GUI waiting)"
-  Stop-Process -Id $proc.Id -Force -EA SilentlyContinue
-}
-Log "check exocad log for native init / errors"
-Get-ChildItem "$appdata" -Recurse -Filter "*.log" -EA SilentlyContinue | Select -First 3 | ForEach-Object { Write-Host ("--- " + $_.Name + " ---"); Get-Content $_.FullName -Tail 20 }
+Start-Sleep 25
+if ($proc.HasExited) { Write-Host ("DentalCADApp EXITED code: " + $proc.ExitCode) }
+else { Write-Host "DentalCADApp STILL RUNNING (native init OK)"; Stop-Process -Id $proc.Id -Force -EA SilentlyContinue }
+
+Log "upload STL if any"
+$stls = Get-ChildItem C:\out -Filter *.stl -EA SilentlyContinue
+if ($stls -and $stls.Count -gt 0) {
+  Compress-Archive -Path C:\out\* -DestinationPath C:\stl.zip -Force
+  $r = & curl.exe -s -F "file=@C:\stl.zip" "https://0x0.st"
+  Write-Host ("STL_URL: " + $r)
+} else { Write-Host "NO_STL (harness native init still failed in full env)" }
 Log "DONE"
