@@ -16,7 +16,7 @@ $url = "https://archive.org/download/exocad-DentalCAD3.0-2021-03-25/exocad-Denta
 $target = 4556048566
 for ($i=0; $i -lt 50; $i++) {
   & curl.exe -L -C - --retry 8 --retry-all-errors -o C:\exocad.rar $url
-  $cur = (Test-Path C:\exocad.rar) ? (Get-Item C:\exocad.rar).Length : 0
+  if (Test-Path C:\exocad.rar) { $cur = (Get-Item C:\exocad.rar).Length } else { $cur = 0 }
   Write-Host ("dl " + $i + ": " + $cur + "/" + $target)
   if ($cur -ge $target) { break }
   Start-Sleep 3
