@@ -7,9 +7,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download exocad 3.0 (archive.org)
-        shell: cmd
-        run: curl -L --retry 5 -o exocad.rar "https://archive.org/download/exocad-DentalCAD3.0-2021-03-25/exocad-DentalCAD3.0-2021-03-25.rar"
+      - name: Download exocad 3.0 (archive.org, resumable)
+        shell: pwsh
+        run: |
+          $url = "https://archive.org/download/exocad-DentalCAD3.0-2021-03-25/exocad-DentalCAD3.0-2021-03-25.rar"
+          $target = 4556048566
+          for ($i = 0; $i -lt 40; $i++) {
+            & curl.exe -L -C - --retry 8 --retry-all-errors -o exocad.rar $url
+            $sz = (Test-Path exocad.rar) ? (Get-Item exocad.rar).Length : 0
+            Write-Host "attempt $i : $sz / $target"
+            if ($sz -ge $target) { Write-Host "download complete"; break }
+            Start-Sleep -Seconds 3
+          }
+          if ((Get-Item exocad.rar).Length -lt $target) { throw "download incomplete" }
 
       - name: Extract exocad DLLs
         shell: cmd
