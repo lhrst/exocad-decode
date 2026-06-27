@@ -8,13 +8,19 @@ Get-Process | Where-Object { $_.Name -match 'curl|decode_scene' } | Stop-Process
 Start-Sleep 2
 Remove-Item C:\b.zip,C:\B -Recurse -Force -EA SilentlyContinue
 
-Log "download bundle (70MB from github release)"
-$burl = "https://ghfast.top/https://github.com/lhrst/exocad-decode/releases/download/v1/exobundle.zip"
-for ($i=0; $i -lt 30; $i++) {
-  & curl.exe -L -C - --retry 8 --retry-all-errors -o C:\b.zip $burl
-  if ((Test-Path C:\b.zip) -and (Get-Item C:\b.zip).Length -ge 73000000) { break }
-  Start-Sleep 3
+Log "download bundle (70MB, multi-mirror)"
+$rel = "https://github.com/lhrst/exocad-decode/releases/download/v1/exobundle.zip"
+$mirrors = @("https://ghfast.top/","https://gh-proxy.com/","https://ghproxy.net/","")
+$ok = $false
+for ($i=0; $i -lt 40 -and -not $ok; $i++) {
+  $m = $mirrors[$i % $mirrors.Count]
+  & curl.exe -L -C - --retry 4 --retry-all-errors -m 300 -o C:\b.zip ($m + $rel)
+  if (Test-Path C:\b.zip) { $sz = (Get-Item C:\b.zip).Length } else { $sz = 0 }
+  Write-Host ("try " + $i + " via [" + $m + "]: " + $sz)
+  if ($sz -ge 73000000) { $ok = $true; break }
+  Start-Sleep 2
 }
+if (-not $ok) { throw "bundle download failed all mirrors" }
 Write-Host ("bundle size: " + (Get-Item C:\b.zip).Length)
 
 Log "extract bundle (with retry)"
