@@ -3,7 +3,7 @@ on: [push, workflow_dispatch]
 jobs:
   decode:
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -16,36 +16,52 @@ jobs:
             & curl.exe -L -C - --retry 8 --retry-all-errors -o exocad.rar $url
             $sz = (Test-Path exocad.rar) ? (Get-Item exocad.rar).Length : 0
             Write-Host "attempt $i : $sz / $target"
-            if ($sz -ge $target) { Write-Host "download complete"; break }
+            if ($sz -ge $target) { break }
             Start-Sleep -Seconds 3
           }
           if ((Get-Item exocad.rar).Length -lt $target) { throw "download incomplete" }
 
-      - name: Extract exocad DLLs
+      - name: Extract full DentalCADApp + crack
         shell: cmd
         run: |
-          7z x exocad.rar "exocad-DentalCAD3.0-2021-03-25/DentalCADApp/bin/config/bin/*.dll" -obin_x -y >nul
-          copy /Y bin_x\exocad-DentalCAD3.0-2021-03-25\DentalCADApp\bin\config\bin\*.dll .
-          dir DentalBaseDotNet.dll DentalData.dll
+          7z x exocad.rar "exocad-DentalCAD3.0-2021-03-25/DentalCADApp/*" -oEXO -y >nul
+          7z x exocad.rar "exocad-DentalCAD3.0-2021-03-25/!ldrg/*" -oCRACK -y >nul
+          echo extracted
 
       - name: Install VC2013 runtime
         shell: cmd
         run: |
-          7z x exocad.rar "exocad-DentalCAD3.0-2021-03-25/DentalCADApp/bin/config/bin/prerequisites/vcredist_2013u1_x64.exe" -ovc -y >nul
-          for /r vc %%f in (vcredist_2013u1_x64.exe) do "%%f" /quiet /norestart
+          for /r EXO %%f in (vcredist_2013u1_x64.exe) do "%%f" /quiet /norestart
           echo vcredist done
 
-      - name: Compile harness
-        shell: cmd
-        run: C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /platform:x64 /out:decode_scene.exe decode_scene.cs
+      - name: Deploy crack (license + dongle emulator)
+        shell: pwsh
+        run: |
+          $bin = "EXO\exocad-DentalCAD3.0-2021-03-25\DentalCADApp\bin\config\bin"
+          $crack = "CRACK\exocad-DentalCAD3.0-2021-03-25\!ldrg"
+          # dongle emulator + license keys -> exe/dll dir
+          Get-ChildItem -Recurse $crack -Include EmuLib.jsn,exoemul.ad,*.key,*.ad 2>$null | ForEach-Object { Copy-Item $_.FullName $bin -Force }
+          # authorizations dir
+          if (Test-Path "$crack\DentalCAD\authorizations") { Copy-Item "$crack\DentalCAD\authorizations" "$bin\authorizations" -Recurse -Force }
+          # DentalCAD appdata (license/settings) -> %LOCALAPPDATA%\DentalCAD
+          $appdata = "$env:LOCALAPPDATA\DentalCAD"
+          New-Item -ItemType Directory -Force $appdata | Out-Null
+          if (Test-Path "$crack\DentalCAD") { Copy-Item "$crack\DentalCAD\*" $appdata -Recurse -Force -ErrorAction SilentlyContinue }
+          Write-Host "bin contents (license/emulator):"
+          Get-ChildItem $bin -Include EmuLib.jsn,exoemul.ad,*.key | Select Name
 
-      - name: Run decode
+      - name: Compile + run decode (in full exocad bin)
         shell: cmd
         run: |
+          set BIN=EXO\exocad-DentalCAD3.0-2021-03-25\DentalCADApp\bin\config\bin
+          copy /Y decode_scene.cs "%BIN%\" >nul
+          copy /Y scene.dentalCAD "%BIN%\" >nul
+          C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /platform:x64 /out:"%BIN%\decode_scene.exe" "%BIN%\decode_scene.cs"
           mkdir out
-          decode_scene.exe scene.dentalCAD out
+          cd "%BIN%"
+          decode_scene.exe scene.dentalCAD "%GITHUB_WORKSPACE%\out"
           echo ---- output ----
-          dir out
+          dir "%GITHUB_WORKSPACE%\out"
 
       - name: Upload STL
         uses: actions/upload-artifact@v4
