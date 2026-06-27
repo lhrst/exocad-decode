@@ -37,21 +37,23 @@ jobs:
           }
           exit 0
 
-      - name: Deploy crack (license + dongle emulator)
+      - name: Install Injektor global-inject service (crack)
         shell: pwsh
         run: |
-          $bin = "EXO\exocad-DentalCAD3.0-2021-03-25\DentalCADApp\bin\config\bin"
           $crack = "CRACK\exocad-DentalCAD3.0-2021-03-25\!ldrg"
-          # dongle emulator + license keys -> exe/dll dir
-          Get-ChildItem -Recurse $crack -Include EmuLib.jsn,exoemul.ad,*.key,*.ad 2>$null | ForEach-Object { Copy-Item $_.FullName $bin -Force }
-          # authorizations dir
-          if (Test-Path "$crack\DentalCAD\authorizations") { Copy-Item "$crack\DentalCAD\authorizations" "$bin\authorizations" -Recurse -Force }
-          # DentalCAD appdata (license/settings) -> %LOCALAPPDATA%\DentalCAD
+          Write-Host "crack files:"; Get-ChildItem $crack | Select Name,Length
+          # deploy license/settings to appdata
           $appdata = "$env:LOCALAPPDATA\DentalCAD"
           New-Item -ItemType Directory -Force $appdata | Out-Null
           if (Test-Path "$crack\DentalCAD") { Copy-Item "$crack\DentalCAD\*" $appdata -Recurse -Force -ErrorAction SilentlyContinue }
-          Write-Host "bin contents (license/emulator):"
-          Get-ChildItem $bin -Include EmuLib.jsn,exoemul.ad,*.key | Select Name
+          # install injektor as service (global inject exoemul.aq hook into all processes)
+          Push-Location $crack
+          $p = Start-Process -FilePath ".\Injektor.exe" -ArgumentList "-I" -Wait -PassThru -NoNewWindow
+          Write-Host "injektor -I exit: $($p.ExitCode)"
+          Pop-Location
+          Start-Sleep -Seconds 10
+          Get-Service | Where-Object { $_.DisplayName -like "*Security Mitigation*" -or $_.Name -like "*njekt*" } | Format-Table Name,Status,DisplayName
+          sc.exe query type=service state=all | Select-String -Pattern "Mitigation","njekt","mul" -Context 0,1
 
       - name: Compile + run decode (in full exocad bin)
         shell: cmd
