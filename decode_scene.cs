@@ -19,6 +19,13 @@ class DecodeScene
         string path = args[0], outdir = args[1];
         Directory.CreateDirectory(outdir);
 
+        // 捕获 native init 抛出的真实原始异常(类型+message), 在被包装成 SEHException 之前
+        AppDomain.CurrentDomain.FirstChanceException += delegate(object s, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e) {
+            string t = e.Exception.GetType().FullName;
+            if (t.IndexOf("FileNotFound") >= 0 || t.IndexOf("TypeInit") < 0)  // 跳过常规 assembly-resolve 噪声
+                Console.WriteLine("FIRSTCHANCE: " + t + " :: " + e.Exception.Message);
+        };
+
         string dir = AppDomain.CurrentDomain.BaseDirectory;
         foreach (string dll in new string[] { "DentalBaseExternals64.dll", "DentalBaseDicom64.dll",
                                               "DentalData.dll", "DentalBaseDotNet.dll" })
@@ -43,11 +50,19 @@ class DecodeScene
             try { Assembly.LoadFrom(dll); } catch { }
         }
 
-        object scene;
-        using (FileStream fs = File.OpenRead(path))
-        {
-            BinaryFormatter bf = new BinaryFormatter();
-            scene = bf.Deserialize(fs);   // DentalBaseDotNet 在此自动解码 SBUF 网格
+        object scene = null;
+        try {
+            using (FileStream fs = File.OpenRead(path))
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                scene = bf.Deserialize(fs);   // DentalBaseDotNet 在此自动解码 SBUF 网格
+            }
+        } catch (Exception ex) {
+            int depth = 0;
+            for (Exception x = ex; x != null; x = x.InnerException, depth++)
+                Console.WriteLine("EXC[" + depth + "] " + x.GetType().FullName + " :: " + x.Message);
+            Console.WriteLine("STACK: " + ex.StackTrace);
+            return;
         }
         Console.WriteLine("Deserialized root: " + scene.GetType().FullName);
 
