@@ -9,7 +9,7 @@ Start-Sleep 2
 Remove-Item C:\b.zip,C:\B -Recurse -Force -EA SilentlyContinue
 
 Log "download bundle (70MB, multi-mirror)"
-$rel = "https://github.com/lhrst/exocad-decode/releases/download/v1/exobundle.zip"
+$rel = "https://github.com/lhrst/exocad-decode/releases/download/v2/exobundle.zip"
 $mirrors = @("https://ghfast.top/","https://gh-proxy.com/","https://ghproxy.net/","")
 $ok = $false
 for ($i=0; $i -lt 40 -and -not $ok; $i++) {
