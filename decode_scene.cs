@@ -34,8 +34,14 @@ class DecodeScene
         AppDomain.CurrentDomain.AssemblyResolve += delegate(object s, ResolveEventArgs e) {
             string n = new AssemblyName(e.Name).Name + ".dll";
             string p = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, n);
-            return File.Exists(p) ? Assembly.LoadFrom(p) : null;
+            try { return File.Exists(p) ? Assembly.LoadFrom(p) : null; } catch { return null; }
         };
+
+        // 预加载目录下所有 .NET 程序集, 让 BinaryFormatter 直接找到(native dll 会 catch 跳过)
+        foreach (string dll in Directory.GetFiles(dir, "*.dll"))
+        {
+            try { Assembly.LoadFrom(dll); } catch { }
+        }
 
         object scene;
         using (FileStream fs = File.OpenRead(path))
