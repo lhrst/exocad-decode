@@ -53,8 +53,13 @@ if (Test-Path "$crack\DentalCAD") { Copy-Item "$crack\DentalCAD\*" $appdata -Rec
 Push-Location $crack
 Start-Process ".\Injektor.exe" -ArgumentList "-I" -Wait -NoNewWindow
 Pop-Location
-Start-Sleep 12
-sc.exe query | Select-String -Pattern "Mitigation","njekt"
+Start-Sleep 5
+# 显式启动 Injektor 服务 + 等驱动注入 hook 全局生效
+sc.exe start Injektor 2>&1 | Out-Host
+Start-Sleep 5
+& sc.exe query Injektor | Out-Host
+Write-Host "--- waiting for global-inject hook to take effect ---"
+Start-Sleep 25
 
 Log "setup working dir (dlls + harness + scene)"
 $bin = "C:\work"
