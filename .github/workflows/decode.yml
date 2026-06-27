@@ -29,10 +29,13 @@ jobs:
           echo extracted
 
       - name: Install VC2013 runtime
-        shell: cmd
+        shell: pwsh
         run: |
-          for /r EXO %%f in (vcredist_2013u1_x64.exe) do "%%f" /quiet /norestart
-          echo vcredist done
+          Get-ChildItem -Recurse EXO -Filter vcredist_2013u1_x64.exe | Select -First 1 | ForEach-Object {
+            $p = Start-Process -FilePath $_.FullName -ArgumentList "/quiet","/norestart" -Wait -PassThru
+            Write-Host "vcredist exit: $($p.ExitCode)"
+          }
+          exit 0
 
       - name: Deploy crack (license + dongle emulator)
         shell: pwsh
