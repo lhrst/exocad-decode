@@ -4,7 +4,7 @@ function Log($m){ Write-Host ("==== " + $m + " ====") }
 Set-Location C:\
 
 Log "download bundle (70MB from github release)"
-$burl = "https://github.com/lhrst/exocad-decode/releases/download/v1/exobundle.zip"
+$burl = "https://ghfast.top/https://github.com/lhrst/exocad-decode/releases/download/v1/exobundle.zip"
 for ($i=0; $i -lt 30; $i++) {
   & curl.exe -L -C - --retry 8 --retry-all-errors -o C:\b.zip $burl
   if ((Test-Path C:\b.zip) -and (Get-Item C:\b.zip).Length -ge 73000000) { break }
@@ -33,8 +33,8 @@ Log "setup working dir (dlls + harness + scene)"
 $bin = "C:\work"
 New-Item -ItemType Directory -Force $bin | Out-Null
 Copy-Item "C:\B\dlls\*.dll" $bin -Force
-curl.exe -L -o "$bin\decode_scene.cs" "https://raw.githubusercontent.com/lhrst/exocad-decode/main/decode_scene.cs"
-curl.exe -L -o "$bin\scene.dentalCAD" "https://raw.githubusercontent.com/lhrst/exocad-decode/main/scene.dentalCAD"
+curl.exe -L -o "$bin\decode_scene.cs" "https://ghfast.top/https://raw.githubusercontent.com/lhrst/exocad-decode/main/decode_scene.cs"
+curl.exe -L -o "$bin\scene.dentalCAD" "https://ghfast.top/https://raw.githubusercontent.com/lhrst/exocad-decode/main/scene.dentalCAD"
 
 Log "compile harness"
 & C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /platform:x64 /out:"$bin\decode_scene.exe" "$bin\decode_scene.cs"
