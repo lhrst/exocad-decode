@@ -11,7 +11,7 @@ for($i=0;$i -lt 30;$i++){ & curl.exe -L -C - --retry 4 -m 300 -o C:\b.zip ($mir[
 Start-Sleep 2; Expand-Archive C:\b.zip C:\B -Force
 Copy-Item C:\B\dlls\*.dll C:\work -Force
 Log "download de-netified DLL"
-for($i=0;$i -lt 30;$i++){ & curl.exe -L -C - --retry 4 -m 300 -o C:\work\DBN_native.dll ($mir[$i%3]+"https://github.com/lhrst/exocad-decode/releases/download/v2/DBN_native.dll"); if((Test-Path C:\work\DBN_native.dll)-and(Get-Item C:\work\DBN_native.dll).Length -ge 20000000){break}; Start-Sleep 2 }
+for($i=0;$i -lt 30;$i++){ & curl.exe -L -C - --retry 4 -m 300 -o C:\work\DBN_native.dll ($mir[$i%3]+"https://github.com/lhrst/exocad-decode/releases/download/v4/DBN_native.dll"); if((Test-Path C:\work\DBN_native.dll)-and(Get-Item C:\work\DBN_native.dll).Length -ge 20000000){break}; Start-Sleep 2 }
 Write-Host("DBN_native.dll size: "+(Get-Item C:\work\DBN_native.dll).Length)
 Log "install VC2013"
 Start-Process C:\B\vcredist_2013u1_x64.exe -ArgumentList "/quiet","/norestart" -Wait
