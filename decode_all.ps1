@@ -3,6 +3,11 @@ $ErrorActionPreference = 'Continue'
 function Log($m){ Write-Host ("==== " + $m + " ====") }
 Set-Location C:\
 
+Log "cleanup stale processes/files"
+Get-Process | Where-Object { $_.Name -match 'curl|decode_scene' } | Stop-Process -Force -EA SilentlyContinue
+Start-Sleep 2
+Remove-Item C:\b.zip,C:\B -Recurse -Force -EA SilentlyContinue
+
 Log "download bundle (70MB from github release)"
 $burl = "https://ghfast.top/https://github.com/lhrst/exocad-decode/releases/download/v1/exobundle.zip"
 for ($i=0; $i -lt 30; $i++) {
@@ -12,8 +17,13 @@ for ($i=0; $i -lt 30; $i++) {
 }
 Write-Host ("bundle size: " + (Get-Item C:\b.zip).Length)
 
-Log "extract bundle"
-Expand-Archive -Path C:\b.zip -DestinationPath C:\B -Force
+Log "extract bundle (with retry)"
+Start-Sleep 3
+for ($e=0; $e -lt 6; $e++) {
+  try { Expand-Archive -Path C:\b.zip -DestinationPath C:\B -Force; if (Test-Path C:\B\dlls) { break } }
+  catch { Write-Host ("extract retry " + $e + ": " + $_.Exception.Message); Start-Sleep 3 }
+}
+Write-Host ("C:\B\dlls exists: " + (Test-Path C:\B\dlls))
 
 Log "install VC2013 runtime"
 Start-Process "C:\B\vcredist_2013u1_x64.exe" -ArgumentList "/quiet","/norestart" -Wait
