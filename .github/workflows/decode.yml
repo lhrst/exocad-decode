@@ -1,0 +1,45 @@
+name: decode-exocad-jaws
+on: [push, workflow_dispatch]
+jobs:
+  decode:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download exocad 3.0 (archive.org)
+        shell: cmd
+        run: curl -L --retry 5 -o exocad.rar "https://archive.org/download/exocad-DentalCAD3.0-2021-03-25/exocad-DentalCAD3.0-2021-03-25.rar"
+
+      - name: Extract exocad DLLs
+        shell: cmd
+        run: |
+          7z x exocad.rar "exocad-DentalCAD3.0-2021-03-25/DentalCADApp/bin/config/bin/*.dll" -obin_x -y >nul
+          copy /Y bin_x\exocad-DentalCAD3.0-2021-03-25\DentalCADApp\bin\config\bin\*.dll .
+          dir DentalBaseDotNet.dll DentalData.dll
+
+      - name: Install VC2013 runtime
+        shell: cmd
+        run: |
+          7z x exocad.rar "exocad-DentalCAD3.0-2021-03-25/DentalCADApp/bin/config/bin/prerequisites/vcredist_2013u1_x64.exe" -ovc -y >nul
+          for /r vc %%f in (vcredist_2013u1_x64.exe) do "%%f" /quiet /norestart
+          echo vcredist done
+
+      - name: Compile harness
+        shell: cmd
+        run: C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /platform:x64 /out:decode_scene.exe decode_scene.cs
+
+      - name: Run decode
+        shell: cmd
+        run: |
+          mkdir out
+          decode_scene.exe scene.dentalCAD out
+          echo ---- output ----
+          dir out
+
+      - name: Upload STL
+        uses: actions/upload-artifact@v4
+        with:
+          name: jaw-meshes
+          path: out/*
+          if-no-files-found: warn
